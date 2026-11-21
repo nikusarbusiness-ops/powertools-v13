@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Compile PowerTools
+    name: Build PowerTools
     runs-on: ubuntu-latest
 
     steps:
@@ -29,32 +29,39 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Check Project Files
+      - name: Show Project Structure
         run: |
-          echo "Checking project..."
-          test -f pom.xml
-          test -f src/main/java/de/powersmp/powertools/PowerTools.java
-          test -f src/main/resources/plugin.yml
-          test -f lib/PowerEco.jar
+          echo "===== PROJECT FILES ====="
+          pwd
+          ls -la
+          echo "===== SOURCE FILES ====="
+          find src -type f 2>/dev/null || true
+          echo "===== LIBRARY FILES ====="
+          find lib -type f 2>/dev/null || true
 
-      - name: Build Plugin
-        run: mvn --batch-mode clean package
+      - name: Build Plugin with Maven
+        run: mvn --batch-mode --errors clean package
 
-      - name: Prepare Release Files
+      - name: Prepare Release
         run: |
           mkdir -p release
-          cp target/*.jar release/
+          find target -maxdepth 1 -name '*.jar' \
+            ! -name 'original-*.jar' \
+            -exec cp {} release/ \;
 
       - name: Package Resource Pack
-        if: hashFiles('resourcepack/pack.mcmeta') != ''
         run: |
-          cd resourcepack
-          zip -r ../release/PowerTools-ResourcePack.zip .
+          if [ -f resourcepack/pack.mcmeta ]; then
+            cd resourcepack
+            zip -r ../release/PowerTools-ResourcePack.zip .
+          else
+            echo "No resource pack folder found. Skipping."
+          fi
 
       - name: Upload Finished Files
         uses: actions/upload-artifact@v4
         with:
-          name: PowerTools-1.3.1-Files
+          name: PowerTools-Build
           path: release/
           if-no-files-found: error
           retention-days: 30
